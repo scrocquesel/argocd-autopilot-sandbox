@@ -34,37 +34,39 @@ metadata:
   namespace: argocd
 spec:
   generators:
-  - git:
-      files:
-      - path: apps/**/testing/config.json
-      repoURL: https://github.com/scrocquesel/argocd-autopilot-sandbox.git
-      requeueAfterSeconds: 20
-      revision: ""
-      template:
-        metadata: {}
-        spec:
-          destination: {}
-          project: ""
-          source:
-            repoURL: ""
-  - git:
-      files:
-      - path: apps/**/testing/config_dir.json
-      repoURL: https://github.com/scrocquesel/argocd-autopilot-sandbox.git
-      requeueAfterSeconds: 20
-      revision: ""
-      template:
-        metadata: {}
-        spec:
-          destination: {}
-          project: ""
-          source:
-            directory:
-              exclude: '{{ exclude }}'
-              include: '{{ include }}'
-              jsonnet: {}
-              recurse: true
-            repoURL: ""
+  - matrix:
+      generators:
+        - merge:
+            mergeKeys:
+              - server
+            generators:
+              - clusters:
+                  selector:
+                    matchLabels:
+                      integration: true
+                  values:
+                    revision: '{{metadata.annotations.revision}}'
+                    gitPath: '{{metadata.annotation.git-path}}'
+              # For clusters of room1, set them main room
+              - clusters:
+                  selector:
+                    matchLabels:
+                      room: '1'
+                    values:
+                      mainRoom: 'true'        
+        - git:
+            files:
+            - path: apps/**/{{gitPath}}/config.json
+            repoURL: https://github.com/scrocquesel/argocd-autopilot-sandbox.git
+            requeueAfterSeconds: 20
+            revision: ""
+            template:
+              metadata: {}
+              spec:
+                destination: {}
+                project: ""
+                source:
+                  repoURL: ""
   syncPolicy: {}
   template:
     metadata:
@@ -76,7 +78,7 @@ spec:
     spec:
       destination:
         namespace: '{{ destNamespace }}'
-        server: '{{ destServer }}'
+        server: '{{server}}'
       ignoreDifferences:
       - group: argoproj.io
         jsonPointers:
